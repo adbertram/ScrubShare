@@ -15,11 +15,9 @@
         
         This example invokes Pester using this community test script to run tests against a company-specific script.
 
-    .PARAMETER ScriptFilePath
-         A mandatory string parameter representing a single script or module file path. This must exist or an exception will be thrown.
-
-    .PARAMETER TestsFilePath
-         A optional string parameter representing the file path to the associated Pester script for the module/script.
+    .PARAMETER FolderPath
+         A mandatory string parameter representing a folder full of PowerShell scripts. This folder will be recursively read
+         for all PowerShell scripts and modules to process.
 
     .PARAMETER CompanyReference
          An optional parameter representing one or more strings separated by a comma that represent any company-specific strings
