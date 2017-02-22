@@ -8,8 +8,10 @@
         PS> $params = @{
                 Script = @{
                 Path = 'C:\Community.Tests.ps1'
-                ScriptFilePath = 'C:\PathToScriptToTest.ps1'
-                CompanyReference = 'Acme Corporation'
+                Parameters = @{
+                    FolderPath = 'C:\Path'
+                    CompanyReference = 'Acme Corporation'
+                }
             }
         PS> Invoke-Pester @params
         
