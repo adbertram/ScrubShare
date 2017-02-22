@@ -38,7 +38,7 @@ param(
     [string[]]$CompanyReference
 )
 
-$defaultCommandNames = (Get-Command -Module 'Microsoft.PowerShell.*','Pester' -All).Name
+$defaultCommandNames = (Get-Command -Module 'CimCmdlets','Microsoft.PowerShell.*','Pester' -All).Name
 $defaultModules = (Get-Module -Name 'Microsoft.PowerShell.*','Pester').Name
 
 if ($scripts = Get-ChildItem -Path $FolderPath -Recurse -Filter '*.ps*' | Sort-Object Name) {
