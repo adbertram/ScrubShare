@@ -38,29 +38,41 @@ param(
     [string[]]$CompanyReference
 )
 
-$defaultCommandNames = (Get-Command -Module 'CimCmdlets','Microsoft.PowerShell.*','Pester' -All).Name
+## Command names to ignore when searching for missing
+$defaultCommandNames = (Get-Command -Module 'CimCmdlets','DnsClient','Microsoft.PowerShell.*','Pester' -All).Name
+
+## Modules to ignore with commnds when searching for missing
 $defaultModules = (Get-Module -Name 'Microsoft.PowerShell.*','Pester').Name
 
+## Find all PowerShell files (PS1, PSM1) inside of the folder path
 if ($scripts = Get-ChildItem -Path $FolderPath -Recurse -Filter '*.ps*' | Sort-Object Name) {
     $scripts | foreach({
         $script = $_.FullName
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($script,[ref]$null,[ref]$null)
+        
+        ## Find all command references inside of the script
         $commandRefs = $ast.FindAll({$args[0] -is [System.Management.Automation.Language.CommandAst]},$true)
-        if ($testRefs = (Select-String -path $script -Pattern "mock [`"|'](.*)[`"|']").Matches) {
-            $commandRefsInTest = $testRefs | foreach {
+        
+        ## If a Pester test script, find all mocks
+        $script:commandRefNames = @()
+        if ($testRefs = Select-String -path $script -Pattern "mock [`"|'](.*)[`"|']") {
+            $testRefs = $testRefs.Matches
+            $commandRefNames += $testRefs | foreach {
                 $_.Groups[1].Value
             }
         }
 
-        $script:commandRefNames += (@($commandRefs).foreach({ [string]$_.CommandElements[0] }) | Select-Object -Unique) + $commandRefsInTest
-        $script:commandDeclarationNames += $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | Select-Object -ExpandProperty Name
+        $script:commandRefNames += (@($commandRefs).foreach({ [string]$_.CommandElements[0] }) | Select-Object -Unique)
+        $script:commandDeclarationNames = $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | Select-Object -ExpandProperty Name
         
         describe "[$($script)] Test" {
 
             if ($CompanyReference) {
                 $companyRefRegex = ('({0})' -f ($CompanyReference -join '|'))
-                if ($companyReferences = [regex]::Matches((Get-Content $script -Raw),$companyRefRegex).Groups) {
-                    $companyReferences = $companyReferences.Groups[1].Value
+                if ($companyReferences = [regex]::Matches((Get-Content $script -Raw),$companyRefRegex)) {
+                    if ($companyReferences -ne $null) {
+                        $companyReferences = $companyReferences.Groups[1].Value
+                    }
                 }
             }
 
@@ -84,9 +96,7 @@ if ($scripts = Get-ChildItem -Path $FolderPath -Recurse -Filter '*.ps*' | Sort-O
                 $_.Command -notmatch 'powershell_ise\.exe'
             } | Select-Object -ExpandProperty Command
 
-            if ($privateModuleNames = (Select-String -Path $script -Pattern "($($defaultModules -join '|'))" -NotMatch).Matches) {
-                $privateModuleNames = $privateModuleNames.Group[1].Value
-            }
+            $privateModuleNames = (Select-String -Path $script -Pattern 'Import-Module (.*)').where({ $_.Matches.Groups[1].Value -notin $defaultModules })
             
             it 'has no references to our company-specific strings' {
                 $companyReferences | should benullOrempty
